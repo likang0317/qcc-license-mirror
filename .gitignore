@@ -1,0 +1,21 @@
+# ============ 服务端 ============
+server/certs/private.pem        # 私钥绝对不能泄露
+server/.env                      # 环境变量
+
+# ============ 客户端 ============
+client/config/config.enc         # 用户授权文件
+client/config/settings.local.yaml
+
+# ============ 依赖缓存 ============
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+
+# ============ IDE / OS ============
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp

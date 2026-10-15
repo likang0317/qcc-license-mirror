@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔐 QCC 授权管理后台</title>
+<style>
+  :root { --bg:#f7f7f8; --surface:#fff; --border:#e4e4e7; --text:#171717; --muted:#52525b; --brand:#0FDC78; --brand-text:#004D26; --blue:#3B82F6; --purple:#8B5CF6; --warn:#EFAA17; --danger:#E8463A; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system,"PingFang SC",system-ui,sans-serif; background:var(--bg); color:var(--text); font-size:14px; }
+  .layout { display:flex; min-height:100vh; }
+  .sidebar { width:200px; background:#1f2937; color:#d1d5db; padding:20px 0; flex-shrink:0; }
+  .sidebar h1 { font-size:15px; color:#fff; padding:0 16px 20px; margin:0; border-bottom:1px solid #374151; }
+  .sidebar a { display:block; padding:10px 20px; color:#d1d5db; text-decoration:none; font-size:13px; border-left:3px solid transparent; }
+  .sidebar a:hover, .sidebar a.active { background:#111827; color:#fff; border-left-color:var(--brand); }
+  .main { flex:1; padding:28px 32px; overflow:auto; }
+  h2 { font-size:18px; margin:0 0 20px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .stat-card .label { font-size:12px; color:var(--muted); }
+  .stat-card .value { font-size:24px; font-weight:600; margin-top:4px; }
+  .stat-card.brand .value { color:var(--brand-text); }
+  .stat-card.warn .value { color:var(--warn); }
+  .stat-card.danger .value { color:var(--danger); }
+  .toolbar { display:flex; gap:10px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+  input[type=text], input[type=search], select { padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+  input[type=text]:focus, input[type=search]:focus { outline:none; border-color:var(--brand); }
+  button { padding:7px 14px; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
+  .btn-brand { background:var(--brand); color:var(--brand-text); }
+  .btn-brand:hover { opacity:0.9; }
+  .btn-danger { background:var(--danger); color:#fff; }
+  .btn-warn { background:var(--warn); color:#171717; }
+  .btn-sm { padding:4px 10px; font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:9px 12px; text-align:left; border-bottom:1px solid var(--border); }
+  th { background:#f4f4f5; font-weight:500; color:var(--muted); font-size:12px; }
+  tr:hover td { background:#fafafa; }
+  .tag { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500; }
+  .tag-green { background:#E5FFF2; color:#004D26; }
+  .tag-yellow { background:#FEF3C7; color:#78350F; }
+  .tag-red { background:#FEE2E2; color:#7F1D1D; }
+  .tag-gray { background:#F3F4F6; color:#4B5563; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size:12px; }
+  .actions { display:flex; gap:6px; }
+  .pagination { margin-top:14px; display:flex; gap:4px; align-items:center; justify-content:flex-end; font-size:12px; color:var(--muted); }
+  .pagination button { padding:4px 10px; background:#fff; border:1px solid var(--border); }
+  .pagination button.active { background:var(--brand); color:var(--brand-text); border-color:var(--brand); }
+  .login-wrap { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+  .login-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:320px; }
+  .login-box h2 { text-align:center; }
+  .login-box input[type=password] { width:100%; padding:9px 12px; margin:10px 0 16px; }
+  .login-box button { width:100%; padding:10px; }
+  .toast { position:fixed; top:20px; right:20px; padding:10px 18px; border-radius:6px; background:#1f2937; color:#fff; font-size:13px; z-index:9999; opacity:0; transition:opacity 0.2s; }
+  .toast.show { opacity:1; }
+  .toast.error { background:var(--danger); }
+  .toast.success { background:var(--brand); color:var(--brand-text); }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:center; justify-content:center; z-index:999; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#fff; border-radius:10px; padding:24px; width:360px; }
+  .modal h3 { margin:0 0 10px; font-size:15px; }
+  .modal-actions { margin-top:16px; display:flex; gap:8px; justify-content:flex-end; }
+  .empty { text-align:center; padding:40px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+
+<div id="login-view" class="login-wrap">
+  <div class="login-box">
+    <h2>🔐 管理员登录</h2>
+    <input id="admin-token" type="password" placeholder="请输入管理员 Token" autocomplete="off">
+    <button class="btn-brand" onclick="login()">登 录</button>
+  </div>
+</div>
+
+<div id="main-view" style="display:none;" class="layout">
+  <div class="sidebar">
+    <h1>🔐 QCC 授权管理</h1>
+    <a href="#" class="active" onclick="switchView('list');return false;">📋 绑定列表</a>
+    <a href="#" onclick="switchView('gen');return false;">➕ 生成注册码</a>
+    <a href="#" onclick="logout();return false;">🚪 退出</a>
+  </div>
+  <div class="main">
+    <div id="view-list">
+      <h2>📋 绑定列表</h2>
+      <div class="stats" id="stats-box"></div>
+      <div class="toolbar">
+        <input id="search-input" type="search" placeholder="搜索注册码 / 手机号 / 用户名..." oninput="loadList(1)">
+        <button class="btn-brand btn-sm" onclick="openGenModal()">➕ 生成注册码</button>
+      </div>
+      <div class="card" style="padding:0; overflow-x:auto;">
+        <table id="list-table">
+          <thead>
+            <tr>
+              <th>注册码</th>
+              <th>状态</th>
+              <th>用户名</th>
+              <th>手机号</th>
+              <th>设备 ID</th>
+              <th>绑定时间</th>
+              <th>最近验证</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="list-body"></tbody>
+        </table>
+        <div id="list-empty" class="empty" style="display:none;">暂无数据</div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+    <div id="view-gen" style="display:none;">
+      <h2>➕ 生成注册码</h2>
+      <div class="card">
+        <label>数量 <input id="gen-count" type="number" value="10" min="1" max="1000" style="width:80px;margin-left:6px;"></label>
+        <label style="margin-left:20px;">备注 <input id="gen-remark" type="text" placeholder="可选" style="width:160px;margin-left:6px;"></label>
+        <button class="btn-brand" onclick="genCodes()" style="margin-left:14px;">生成</button>
+        <div id="gen-result" style="margin-top:16px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="confirm-modal">
+  <div class="modal">
+    <h3 id="confirm-title">确认操作？</h3>
+    <div id="confirm-msg" style="color:var(--muted);font-size:13px;"></div>
+    <div class="modal-actions">
+      <button onclick="closeModal()">取消</button>
+      <button id="confirm-btn" class="btn-danger">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';  // 同域部署
+let TOKEN = localStorage.getItem('admin_token') || '';
+let currentPage = 1;
+
+function $(id) { return document.getElementById(id); }
+
+function toast(msg, type='success') {
+  const t = $('toast'); t.className = 'toast show ' + type; t.textContent = msg;
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+async function api(path, opts={}) {
+  const headers = opts.headers || {};
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  headers['Content-Type'] = 'application/json';
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) { logout(); throw new Error('未授权'); }
+  return res.json();
+}
+
+// ====== 登录 ======
+function login() {
+  const tok = $('admin-token').value.trim();
+  if (!tok) return toast('请输入 Token', 'error');
+  TOKEN = tok;
+  localStorage.setItem('admin_token', tok);
+  api('/api/admin/stats').then(() => {
+    $('login-view').style.display = 'none';
+    $('main-view').style.display = 'flex';
+    loadStats(); loadList(1);
+  }).catch(() => { TOKEN=''; localStorage.removeItem('admin_token'); toast('Token 无效','error'); });
+}
+function logout() { TOKEN=''; localStorage.removeItem('admin_token'); location.reload(); }
+
+// ====== 视图切换 ======
+function switchView(v) {
+  document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+  event && event.target.classList.add('active');
+  ['list','gen'].forEach(x => $('view-'+x).style.display = 'none');
+  $('view-'+v).style.display = 'block';
+  if (v==='list') { loadStats(); loadList(1); }
+}
+
+// ====== 统计 ======
+async function loadStats() {
+  const data = await api('/api/admin/stats');
+  const statHtml = `
+    <div class="stat-card"><div class="label">总注册码</div><div class="value">${data.total_codes||0}</div></div>
+    <div class="stat-card brand"><div class="label">已绑定</div><div class="value">${data.bound_codes||0}</div></div>
+    <div class="stat-card warn"><div class="label">未使用</div><div class="value">${data.unused_codes||0}</div></div>
+    <div class="stat-card danger"><div class="label">已吊销</div><div class="value">${data.revoked_codes||0}</div></div>
+    <div class="stat-card"><div class="label">注册用户</div><div class="value">${data.total_users||0}</div></div>
+  `;
+  $('stats-box').innerHTML = statHtml;
+}
+
+// ====== 列表 ======
+async function loadList(page) {
+  currentPage = page;
+  const search = $('search-input').value;
+  const data = await api(`/api/admin/list?page=${page}&size=20&search=${encodeURIComponent(search)}`);
+  const tbody = $('list-body');
+  const empty = $('list-empty');
+  tbody.innerHTML = '';
+  if (!data.data || data.data.length === 0) { empty.style.display='block'; $('pagination').innerHTML=''; return; }
+  empty.style.display='none';
+  const rows = data.data.map(r => `
+    <tr>
+      <td class="mono">${r.code}</td>
+      <td>${statusTag(r.status)}</td>
+      <td>${r.username || '—'}</td>
+      <td>${r.phone || '—'}</td>
+      <td class="mono">${r.device_id ? (r.device_id.substring(0,8)+'…') : '—'}</td>
+      <td>${fmt(r.bound_at)}</td>
+      <td>${fmt(r.last_verify) || '—'}</td>
+      <td class="actions">
+        ${r.status==='bound' ? `<button class="btn-warn btn-sm" onclick="confirmAction('unbind','${r.code}')">解绑</button>` : ''}
+        ${r.status!=='revoked' ? `<button class="btn-danger btn-sm" onclick="confirmAction('revoke','${r.code}')">吊销</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+  tbody.innerHTML = rows;
+  // 分页
+  const total = data.total || 0;
+  const pages = Math.ceil(total/20);
+  let phtml = '';
+  for (let i=1; i<=pages; i++) {
+    phtml += `<button class="${i===page?'active':''}" onclick="loadList(${i})">${i}</button>`;
+  }
+  $('pagination').innerHTML = `共 ${total} 条 ` + phtml;
+}
+
+function statusTag(s) {
+  const map = {
+    bound: '<span class="tag tag-green">已绑定</span>',
+    unused: '<span class="tag tag-yellow">未使用</span>',
+    revoked: '<span class="tag tag-red">已吊销</span>'
+  };
+  return map[s] || `<span class="tag tag-gray">${s}</span>`;
+}
+
+function fmt(t) {
+  if (!t) return '';
+  return new Date(t).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+// ====== 操作 ======
+function confirmAction(type, code) {
+  const titles = { unbind:'解绑注册码？', revoke:'吊销注册码？' };
+  const msgs = {
+    unbind: `将把注册码 ${code} 从当前设备解绑，状态回到"未使用"，可被新设备重新注册。`,
+    revoke: `将永久吊销注册码 ${code}，已绑定的设备 24 小时后失效，无法恢复！`
+  };
+  $('confirm-title').textContent = titles[type];
+  $('confirm-msg').textContent = msgs[type];
+  $('confirm-btn').onclick = () => doAction(type, code);
+  $('confirm-modal').classList.add('show');
+}
+function closeModal() { $('confirm-modal').classList.remove('show'); }
+
+async function doAction(type, code) {
+  closeModal();
+  const path = type==='unbind' ? '/api/admin/unbind' : '/api/admin/revoke';
+  await api(path, { method:'POST', body: JSON.stringify({ code }) });
+  toast(type==='unbind' ? '已解绑' : '已吊销');
+  loadList(currentPage); loadStats();
+}
+
+// ====== 生成 ======
+async function genCodes() {
+  const count = parseInt($('gen-count').value) || 10;
+  const remark = $('gen-remark').value;
+  const body = { count };
+  if (remark) body.remark = remark;
+  const data = await api('/api/admin/gen', { method:'POST', body: JSON.stringify(body) });
+  const codes = data.codes || [];
+  $('gen-result').innerHTML = `<div style="margin-top:10px;">生成 ${codes.length} 个：</div>
+    <div style="margin-top:8px;font-family:monospace;font-size:12px;background:var(--surface-muted);padding:10px;border-radius:6px;word-break:break-all;">
+      ${codes.join('  ')}
+    </div>
+    <button class="btn-brand btn-sm" onclick="navigator.clipboard.writeText('${codes.join('\\n')}')" style="margin-top:8px;">复制全部</button>`;
+  loadStats();
+}
+
+// ====== 初始化 ======
+if (TOKEN) {
+  api('/api/admin/stats').then(() => {
+    $('login-view').style.display='none';
+    $('main-view').style.display='flex';
+    loadStats(); loadList(1);
+  }).catch(() => { logout(); });
+}
+
+// 回车登录
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && $('login-view').style.display !== 'none' && !$('login-view').style.display) {}
+  if (e.key === 'Enter' && document.activeElement.id === 'admin-token') login();
+  if (e.key === 'Enter' && document.activeElement.id === 'search-input') loadList(1);
+});
+</script>
+</body>
+</html>

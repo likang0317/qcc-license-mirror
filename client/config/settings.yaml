@@ -1,0 +1,15 @@
+# 客户端配置
+license_server_url: "https://qcc-license.onrender.com"
+
+# 企查查 API（可选，填了就走API模式，不填走网页采集）
+qcc_api_key: ""
+qcc_api_secret: ""
+
+# 微信自动化频率控制
+wxauto:
+  interval_min: 300      # 每次添加最小间隔（秒）
+  interval_max: 900      # 每次添加最大间隔（秒）
+  daily_max: 30          # 每日上限
+
+# 授权失效宽限期（小时）
+license_grace_hours: 24
