@@ -15,6 +15,23 @@ from db import database
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "change-me-in-production")
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
+
+
+# ---------------------------------------------------------------------------
+# POST /api/admin/login  用户名+密码登录，成功返回 token
+# ---------------------------------------------------------------------------
+class LoginReq(BaseModel):
+    username: str
+    password: str
+
+
+@router.post("/login")
+def login(req: LoginReq):
+    if req.username == ADMIN_USER and req.password == ADMIN_PASS:
+        return {"token": ADMIN_TOKEN}
+    raise HTTPException(status_code=401, detail="用户名或密码错误")
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +173,33 @@ def revoke(req: RevokeReq, _auth: bool = Depends(_check_auth)):
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"撤销失败: {e}")
+
+
+# ---------------------------------------------------------------------------
+# POST /api/admin/unrevoke
+# ---------------------------------------------------------------------------
+@router.post("/unrevoke")
+def unrevoke(req: RevokeReq, _auth: bool = Depends(_check_auth)):
+    """恢复被吊销的注册码（有绑定记录时恢复为 bound，无则恢复为 unused）"""
+    try:
+        with database.get_conn() as conn:
+            has_binding = database.fetchone(
+                conn, "SELECT 1 FROM bindings WHERE code = %s", (req.code,)
+            )
+            new_status = "bound" if has_binding else "unused"
+            database.execute(
+                conn,
+                "UPDATE codes SET status = %s WHERE code = %s",
+                (new_status, req.code),
+            )
+            database.execute(
+                conn,
+                "UPDATE bindings SET revoked_since = NULL WHERE code = %s",
+                (req.code,),
+            )
+        return {"ok": True, "status": new_status}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"恢复失败: {e}")
 
 
 # ---------------------------------------------------------------------------

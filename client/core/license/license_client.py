@@ -1,5 +1,6 @@
 """客户端授权相关：注册 + 启动验证 + RSA 验签"""
 import os
+import sys
 import base64
 import time
 from pathlib import Path
@@ -11,8 +12,20 @@ from Crypto.Hash import SHA256
 
 from .local_store import store_license, load_license
 
-DEFAULT_CONFIG = os.path.expanduser("~/.qcc-wechat/config.enc")
-DEFAULT_PUBLIC_KEY = str(Path(__file__).resolve().parent.parent.parent / "certs" / "public.pem")
+def _config_dir() -> Path:
+    """授权文件存放目录：优先 APPDATA，其次 ~。"""
+    base = os.getenv("APPDATA") or os.path.expanduser("~")
+    return Path(base) / "QCC-WeChat"
+
+DEFAULT_CONFIG = str(_config_dir() / "config.enc")
+
+def _app_dir() -> Path:
+    """PyInstaller 打包后资源在 sys._MEIPASS，开发时在项目根。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent.parent
+
+DEFAULT_PUBLIC_KEY = str(_app_dir() / "certs" / "public.pem")
 
 
 class LicenseError(Exception):
@@ -58,7 +71,7 @@ class LicenseClient:
         resp = requests.post(f"{self.server}/api/register", json=payload, timeout=10)
         data = resp.json()
         if resp.status_code != 200:
-            raise LicenseError(data.get("error", "注册失败"))
+            raise LicenseError(data.get("detail") or data.get("error") or f"注册失败({resp.status_code})")
 
         # 验签
         payload_str = data.get("payload", "")

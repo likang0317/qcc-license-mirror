@@ -3,7 +3,8 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QMessageBox, QFrame
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QRegularExpression
+from PyQt5.QtGui import QRegularExpressionValidator
 
 from core.license.machine_id import get_device_id
 from core.license.license_client import LicenseClient, LicenseError
@@ -13,14 +14,15 @@ class RegisterDialog(QDialog):
     def __init__(self, server_url: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("软件注册")
-        self.setFixedSize(420, 340)
+        self.setMinimumSize(480, 400)
+        self.resize(480, 400)
         self._server_url = server_url
         self._license_id = None
         self._build_ui()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setContentsMargins(32, 28, 32, 24)
         layout.setSpacing(14)
 
         title = QLabel("🔐 软件授权注册")
@@ -38,17 +40,36 @@ class RegisterDialog(QDialog):
 
         self._username_edit = QLineEdit()
         self._username_edit.setPlaceholderText("请输入用户名")
+        self._username_edit.setFixedHeight(36)
+        self._username_edit.setStyleSheet(
+            "QLineEdit { padding:6px 12px; border:1px solid #d1d5db;"
+            "border-radius:6px; font-size:14px; background:#fff; }"
+            "QLineEdit:focus { border-color:#0FDC78; }"
+        )
         layout.addWidget(QLabel("用户名"))
         layout.addWidget(self._username_edit)
 
         self._phone_edit = QLineEdit()
         self._phone_edit.setPlaceholderText("请输入手机号")
-        self._phone_edit.setInputMask("00000000000")
+        self._phone_edit.setFixedHeight(36)
+        self._phone_edit.setMaxLength(11)
+        self._phone_edit.setValidator(QRegularExpressionValidator(QRegularExpression(r"[0-9]+")))
+        self._phone_edit.setStyleSheet(
+            "QLineEdit { padding:6px 12px; border:1px solid #d1d5db;"
+            "border-radius:6px; font-size:14px; background:#fff; }"
+            "QLineEdit:focus { border-color:#0FDC78; }"
+        )
         layout.addWidget(QLabel("手机号"))
         layout.addWidget(self._phone_edit)
 
         self._invite_edit = QLineEdit()
         self._invite_edit.setPlaceholderText("邀请码（可不填，服务端自动生成）")
+        self._invite_edit.setFixedHeight(36)
+        self._invite_edit.setStyleSheet(
+            "QLineEdit { padding:6px 12px; border:1px solid #d1d5db;"
+            "border-radius:6px; font-size:14px; background:#fff; }"
+            "QLineEdit:focus { border-color:#0FDC78; }"
+        )
         layout.addWidget(QLabel("邀请码（可选）"))
         layout.addWidget(self._invite_edit)
 

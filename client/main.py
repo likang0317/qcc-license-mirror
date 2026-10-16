@@ -1,59 +1,32 @@
-"""客户端主窗口骨架（Phase 2/3 逐步填充）"""
+"""客户端入口"""
 import sys
-import os
 from pathlib import Path
 
-import yaml
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QMessageBox
-from PyQt5.QtCore import Qt
+import json
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from core.license.machine_id import get_device_id
-from core.license.license_client import LicenseClient, LicenseError
+from core.license.license_client import LicenseClient
 from gui.register_dialog import RegisterDialog
+from gui.main_window import MainWindow
 
-CONFIG_PATH = str(Path(__file__).resolve().parent.parent / "config" / "settings.yaml")
+def _exe_dir() -> Path:
+    """PyInstaller 打包后取 exe 所在目录，开发时取 main.py 所在目录。"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+CONFIG_PATH = str(_exe_dir() / "config" / "settings.json")
 
 
 def load_config() -> dict:
     if Path(CONFIG_PATH).exists():
         with open(CONFIG_PATH, encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    return {}
-
-
-class MainWindow(QMainWindow):
-    def __init__(self, config: dict):
-        super().__init__()
-        self._config = config
-        self.setWindowTitle("企查查 → 微信 自动加好友")
-        self.resize(960, 640)
-        self._build_ui()
-
-    def _build_ui(self):
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        layout.setContentsMargins(40, 40, 40, 40)
-        layout.setSpacing(16)
-
-        title = QLabel("🚀 企查查 → 微信 自动加好友工具")
-        title.setStyleSheet("font-size:22px;font-weight:600;")
-        layout.addWidget(title)
-
-        device = QLabel(f"设备 ID: {get_device_id()}")
-        device.setStyleSheet("color:#888;font-size:12px;")
-        layout.addWidget(device)
-
-        layout.addStretch()
-
-        # TODO: Phase 4 填充搜索面板、任务面板、日志面板
-        placeholder = QLabel("🛠️  功能面板开发中...\nPhase 4 会补上企查查搜索 + 微信自动化")
-        placeholder.setAlignment(Qt.AlignCenter)
-        placeholder.setStyleSheet("color:#bbb;font-size:16px;border:2px dashed #eee;border-radius:12px;padding:40px;")
-        placeholder.setMinimumHeight(280)
-        layout.addWidget(placeholder)
-
-        layout.addStretch()
+            try:
+                return json.load(f)
+            except Exception:
+                pass
+    return {"license_server_url": "http://localhost:8000"}
 
 
 def main():
